@@ -4,20 +4,20 @@ FROM python:3.11-slim
 # Instalar curl y dependencias básicas
 RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
 
-# Instalar uv (gestor de dependencias)
-RUN curl -LsSf https://astral.sh/uv/install.sh | sh && \
-    mv /root/.local/bin/uv /usr/local/bin/uv
-
 # Establecer directorio de trabajo
 WORKDIR /app
 
-# Copiar archivos de dependencias primero (para aprovechar la caché de Docker)
+# Copiar archivos de dependencias primero (para cache)
 COPY pyproject.toml uv.lock ./
 
-# Instalar dependencias de la app (flet incluido)
-RUN uv sync --frozen
+# Instalar uv
+RUN curl -LsSf https://astral.sh/uv/install.sh | sh && \
+    mv /root/.local/bin/uv /usr/local/bin/uv
 
-# Copiar el código fuente y assets
+# Instalar flet directamente con pip para evitar problemas de rutas
+RUN pip install --no-cache-dir flet[all]==0.28.3
+
+# Copiar código fuente
 COPY ./src ./src
 
 # Puerto por defecto de Flet Web
