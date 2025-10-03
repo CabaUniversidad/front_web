@@ -1,7 +1,7 @@
 # Imagen base ligera de Python
 FROM python:3.11-slim
 
-# Instalar curl para poder instalar uv
+# Instalar curl y dependencias básicas
 RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
 
 # Instalar uv (gestor de dependencias)
@@ -14,8 +14,8 @@ WORKDIR /app
 # Copiar archivos de dependencias primero (para aprovechar la caché de Docker)
 COPY pyproject.toml uv.lock ./
 
-# Instalar dependencias en el sistema
-RUN uv sync --frozen --no-dev
+# Instalar dependencias de la app (flet incluido)
+RUN uv sync --frozen
 
 # Copiar el código fuente y assets
 COPY ./src ./src
