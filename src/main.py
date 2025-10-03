@@ -54,8 +54,7 @@ def crear_usuario(
     idusuario: ft.TextField,
     nombre_usuario: ft.TextField,
     email_usuario: ft.TextField,
-):
-    """Maneja la lógica para enviar una solicitud POST a la API de FastAPI."""
+): 
 
     # 1. Validar y obtener el ID
     try:
