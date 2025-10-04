@@ -80,7 +80,7 @@ def crear_usuario(
         response = requests.post(f"{API_BASE_URL}/usuarios/", json=payload, timeout=5)
 
         # 4. Manejar la respuesta
-        if response.status_code == 201:
+        if response.status_code == 200 or response.status_code == 201:
             page.open(
                 ft.SnackBar(
                     ft.Text(f"✅ Usuario {user_id} creado exitosamente!"),
