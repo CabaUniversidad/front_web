@@ -7,7 +7,8 @@ import asyncio
 
 # --- Configuración ---
 # **IMPORTANTE**: Asegúrate de que tu servidor FastAPI esté corriendo en esta URL.
-API_BASE_URL = "http://127.0.0.1:8000"
+#API_BASE_URL = "http://127.0.0.1:8000"
+API_BASE_URL = "http://backend:8000"
 
 
 # --------------------------------------------------------------------------------
@@ -48,21 +49,20 @@ async def cargar_datos(page: ft.Page, usuarios_tabla: ft.DataTable, salida: ft.T
             page.update()
             await asyncio.sleep(5)
 
-
+ 
 def crear_usuario(
     page: ft.Page,
     idusuario: ft.TextField,
     nombre_usuario: ft.TextField,
     email_usuario: ft.TextField,
 ): 
-
     # 1. Validar y obtener el ID
     try:
         user_id = int(idusuario.value)
     except ValueError:
         page.open(
             ft.SnackBar(
-                ft.Text("El ID debe ser un número entero válido."),
+                ft.Text("❌ El ID debe ser un número entero válido."),
                 bgcolor=ft.Colors.RED_700,
             )
         )
@@ -72,43 +72,73 @@ def crear_usuario(
     # 2. Crear el payload
     payload = {
         "id": user_id,
-        "nombre": nombre_usuario.value,
-        "correo": email_usuario.value,
-    } 
+        "nombre": nombre_usuario.value.strip(),
+        "correo": email_usuario.value.strip(),
+    }
+
     # 3. Realizar la solicitud POST
     try:
-        # Aquí se realiza la solicitud a tu API de FastAPI
-        response = requests.post(f"{API_BASE_URL}/usuarios/", json=payload)
+        response = requests.post(f"{API_BASE_URL}/usuarios/", json=payload, timeout=5)
 
-        print("Payload a enviar:", payload)
-        # 4. Mostrar mensaje de éxito y limpiar campos
+        # 4. Manejar la respuesta
+        if response.status_code == 201:
+            page.open(
+                ft.SnackBar(
+                    ft.Text(f"✅ Usuario {user_id} creado exitosamente!"),
+                    bgcolor=ft.Colors.GREEN_700,
+                )
+            )
+            # Limpiar campos
+            idusuario.value = ""
+            nombre_usuario.value = ""
+            email_usuario.value = ""
+        elif response.status_code == 422:
+            page.open(
+                ft.SnackBar(
+                    ft.Text("⚠️ Error de validación (422): revise los datos."),
+                    bgcolor=ft.Colors.RED_700,
+                )
+            )
+        elif response.status_code == 400:
+            page.open(
+                ft.SnackBar(
+                    ft.Text("⚠️ Error 400: Usuario con ese ID ya existe."),
+                    bgcolor=ft.Colors.RED_700,
+                )
+            )
+        else:
+            page.open(
+                ft.SnackBar(
+                    ft.Text(f"⚠️ Error {response.status_code}: {response.text}"),
+                    bgcolor=ft.Colors.RED_700,
+                )
+            )
+
+    except requests.exceptions.ConnectionError:
         page.open(
             ft.SnackBar(
-                ft.Text(f"Usuario {user_id} creado exitosamente!"),
-                bgcolor=ft.Colors.GREEN_700,
+                ft.Text(f"🚫 No se pudo conectar a la API ({API_BASE_URL})."),
+                bgcolor=ft.Colors.RED_700,
+            )
+        )
+    except requests.exceptions.Timeout:
+        page.open(
+            ft.SnackBar(
+                ft.Text("⏳ La solicitud a la API tardó demasiado."),
+                bgcolor=ft.Colors.RED_700,
+            )
+        )
+    except requests.exceptions.RequestException as e:
+        page.open(
+            ft.SnackBar(
+                ft.Text(f"❌ Error inesperado: {e}"),
+                bgcolor=ft.Colors.RED_700,
             )
         )
 
-        idusuario.value = ""
-        nombre_usuario.value = ""
-        email_usuario.value = ""
-
+    finally:
         page.update()
 
-    except requests.exceptions.RequestException as e:
-        # 5. Manejar errores de la solicitud (conexión o respuesta de la API)
-        error_message = f"Error: No se pudo conectar a la API ({API_BASE_URL})."
-        if response.status_code == 422:
-            error_message = "Error de validación (422): Revise los datos de entrada."
-        elif response.status_code == 400:
-            error_message = "Error 400: Usuario con ese ID ya existe."
-        else:
-            error_message = (
-                f"Error al crear usuario: {response.status_code} - {response.text}"
-            )
-
-        page.open(ft.SnackBar(ft.Text(error_message), bgcolor=ft.Colors.RED_700))
-        page.update()
 
 
 def main(page: ft.Page):
