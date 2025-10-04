@@ -1,15 +1,14 @@
 import flet as ft
 import requests
 import json
-import time
+import time,os
 
 import asyncio
 
 # --- Configuración ---
 # **IMPORTANTE**: Asegúrate de que tu servidor FastAPI esté corriendo en esta URL.
 #API_BASE_URL = "http://127.0.0.1:8000"
-API_BASE_URL = "http://backend:8000"
-
+API_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:8000")
 
 # --------------------------------------------------------------------------------
 # --- Lógica de Manejo de API ---
