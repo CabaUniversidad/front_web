@@ -6,7 +6,7 @@ on:
       - main
 
 jobs:
-  build-and-push:
+  construir-y-publicar:
     runs-on: ubuntu-latest
 
     steps:
@@ -38,3 +38,108 @@ jobs:
           tags: |
             ${{ secrets.DOCKER_USER }}/front_web:latest
             ${{ secrets.DOCKER_USER }}/front_web:${{ github.sha }}
+  desplegar:
+    needs: construir-y-publicar
+    runs-on: ubuntu-latest
+    steps:
+      # 1️⃣ Descargar repositorio 
+      - name: Descargar repositorio
+        uses: actions/checkout@v3
+
+      # 2️⃣ Configurar agente SSH
+      - name: Configurar agente SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      # 3️⃣ Copiar script de configuración (setup_vm.sh) a la VM
+      - name: Copiar script de configuración a la VM
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          source: "setup_vm.sh"
+          target: "/home/${{ secrets.SSH_USER }}/temp/"
+
+      # 4️⃣ Ejecutar script de instalación de Docker en la VM
+      - name: Ejecutar script de instalación de Docker en la VM
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          # ❌ script_stop: true (Eliminado en este paso, era redundante aquí)
+          script: |
+            cd ~/temp
+            chmod +x setup_vm.sh
+            ./setup_vm.sh ${{ secrets.SSH_USER }}
+            rm setup_vm.sh
+
+      # 5️⃣ Copiar archivos de despliegue a la VM (CORREGIDO)
+      - name: Copiar docker-compose.yml y deploy.sh a la VM
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          # ✅ CORRECCIÓN CLAVE: Copiando ambos scripts
+          source: "docker-compose.yml,deploy.sh"
+          target: "/home/${{ secrets.SSH_USER }}/deploy/"
+
+      # 6️⃣ Ejecutar el script de despliegue en la VM (CORREGIDO)
+      - name: Ejecutar script de despliegue
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          # ❌ ELIMINADO: Ya no usamos 'script_stop: true' (quita el warning)
+          script: |
+            DEPLOY_PATH=/home/${{ secrets.SSH_USER }}/deploy
+            cd $DEPLOY_PATH
+            
+            # Asegurar permisos de ejecución para el script recién copiado
+            chmod +x deploy.sh 
+            
+            # Ejecutar el script, pasando SSH_USER, DOCKER_PASSWORD y DOCKER_USER
+            ./deploy.sh \
+              ${{ secrets.SSH_USER }} \
+              "${{ secrets.DOCKER_PASSWORD }}" \
+              ${{ secrets.DOCKER_USER }}
+
+  notificar-al-finalizar: # Nombre del trabajo cambiado a español y dependencia ajustada
+    needs: [construir-y-publicar, desplegar] # ¡CORRECCIÓN CLAVE! Ahora espera a que 'desplegar' termine
+    runs-on: ubuntu-latest
+    steps:
+      - name: Enviar notificacion de despliegue a Gmail
+        # Usamos una acción popular de terceros para enviar correos SMTP
+        uses: dawidd6/action-send-mail@v3 
+        with:
+          # Configuración del servidor SMTP de Gmail
+          server_address: smtp.gmail.com
+          server_port: 465
+          secure: true
+          
+          # Credenciales de Gmail (usando los Secrets de GitHub)
+          username: ${{ secrets.MAIL_USERNAME }}
+          password: ${{ secrets.MAIL_PASSWORD }}
+          
+          # Destinatario y Remitente
+          to: 'abdelpre18@gmail.com' # El correo que debe recibir la notificación
+          from: ${{ secrets.MAIL_USERNAME }} # Opcional: Para que el remitente sea tu mismo Gmail
+          
+          # Asunto del correo
+          subject: | # Usa | para contenido multi-línea
+            ✅ Despliegue completado De Frontend| ${{ github.repository }} | Estatus: ${{ job.status }}
+          
+          # Cuerpo del correo (puedes usar HTML para un mejor formato)
+          body: |
+            El flujo de trabajo **${{ github.workflow }}** se ha ejecutado con éxito.
+            
+            **Detalles del Despliegue:**
+            - Repositorio: ${{ github.repository }}
+            - Commit: ${{ github.sha }}
+            - Estatus: **${{ job.status }}**
+            - Enlace al log: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          if: always() 
