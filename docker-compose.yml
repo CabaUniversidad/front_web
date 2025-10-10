@@ -3,7 +3,7 @@ version: '3.5'
 services:
   web:
     image: facc1/front_web:latest  # Imagen ya construida y subida a Docker Hub
-    container_name: backend_fastapi_cloud
+    container_name: front_web_cloud
     ports:
       - "80:8550"   # Puerto del host : puerto del contenedor
     restart: always

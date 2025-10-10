@@ -17,7 +17,7 @@ def generar_nombre_random():
 
 def generar_email_random():
     numero = random.randint(1, 999)
-    dominio = random.choice(["example.com", "correo.com", "mail.com"])
+    dominio = random.choice(["example.com", "correo.com", "gmail.com"])
     return f"{fake.first_name()}{numero}@{dominio}"
 
 def generar_contraseña_random():
@@ -89,6 +89,8 @@ def crear_usuario(page, nombre_usuario, email_usuario, password_usuario, rol_usu
 
     try:
         response = requests.post(f"{API_BASE_URL}/usuarios", json=payload)
+        print(payload)
+        print(response)
         if response.status_code in (200, 201):
             page.open(ft.SnackBar(ft.Text("✅ Usuario creado!"), bgcolor=ft.Colors.GREEN_700))
             Limpiar(nombre_usuario, email_usuario, password_usuario)
