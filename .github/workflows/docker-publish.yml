@@ -137,7 +137,7 @@ jobs:
           body: |
             El flujo de trabajo **${{ github.workflow }}** se ha ejecutado con éxito.
             
-            **Detalles del Despliegue:**
+            **Detalles del Despliegue Del Frontend:**
             - Repositorio: ${{ github.repository }}
             - Commit: ${{ github.sha }}
             - Estatus: **${{ job.status }}**
